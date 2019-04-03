@@ -1,0 +1,3 @@
+dependencies:
+  - recipe: elastic::install
+  - recipe: elastic::default
