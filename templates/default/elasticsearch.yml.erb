@@ -82,6 +82,7 @@ node.data: true
 # for customized shard allocation filtering, or allocation awareness. An attribute
 # is a simple key value pair, similar to node['key']: value, here is an example:
 #
+#node.rack: rack314
 
 # By default, multiple nodes are allowed to start from the same installation location
 # to disable it, set the following:
@@ -323,10 +324,29 @@ http.cors.allow-origin : "*"
 # 2. Configure an initial list of master nodes in the cluster
 #    to perform discovery when new nodes (master or data) are started:
 #
+#discovery.zen.ping.unicast.hosts: ["host1", "host2:port"
 
-discovery.zen.minimum_master_nodes: 2
-discovery.zen.ping.unicast.hosts: [<%= node['elastic']['clusternodes'] %>]
-discovery.zen.fd.ping_timeout: "3s"
+# EC2 discovery allows to use AWS EC2 API in order to perform discovery.
+#
+# You have to install the cloud-aws plugin for enabling the EC2 discovery.
+#
+# For more information, see
+# <http://elasticsearch.org/guide/en/elasticsearch/reference/current/modules-discovery-ec2.html>
+#
+# See <http://elasticsearch.org/tutorials/elasticsearch-on-ec2/>
+# for a step-by-step tutorial.
+
+# GCE discovery allows to use Google Compute Engine API in order to perform discovery.
+#
+# You have to install the cloud-gce plugin for enabling the GCE discovery.
+#
+# For more information, see <https://github.com/elasticsearch/elasticsearch-cloud-gce>.
+
+# Azure discovery allows to use Azure API in order to perform discovery.
+#
+# You have to install the cloud-azure plugin for enabling the Azure discovery.
+#
+# For more information, see <https://github.com/elasticsearch/elasticsearch-cloud-azure>.
 
 ################################## Slow Log ##################################
 

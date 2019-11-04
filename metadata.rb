@@ -3,7 +3,7 @@ maintainer       "Jim Dowling"
 maintainer_email "jdowling@kth.se"
 license          "Apache v2.0"
 description      'Installs/Configures/Runs elasticsearch'
-version          "0.9.0"
+version          "1.0.0"
 
 recipe            "elastic::install", "Experiment setup for elasticsearch"
 recipe            "elastic::default",  "Configures and starts an elasticsearch server"
@@ -18,9 +18,6 @@ depends "sysctl"
 %w{ ubuntu debian rhel centos }.each do |os|
   supports os
 end
-attribute "elastic/clusternodes",
-          :description =>  "List of comma separated cluster node ip",
-          :type => 'string'
 
 attribute "elastic/port",
           :description =>  "Port for elasticsearch service (default: 9200)",
