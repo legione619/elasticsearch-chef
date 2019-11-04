@@ -18,4 +18,3 @@ nohup child_pr.sh.erb &
 nohup child_ds.sh.erb &
 
 
-# test_elastic
