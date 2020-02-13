@@ -5,6 +5,7 @@ metadata
 
 cookbook 'java'
 
+cookbook 'conda', github: "giabbo79/conda-chef", branch: "master"
 cookbook 'kagent', github: "giabbo79/kagent-chef", branch: "master"
 cookbook 'ndb', github: "giabbo79/ndb-chef", branch: "master"
 
