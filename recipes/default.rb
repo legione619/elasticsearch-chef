@@ -30,6 +30,13 @@ user node['elastic']['user'] do
   not_if { node['install']['external_users'].casecmp("true") == 0 }
 end
 
+group node['kagent']['certs_group'] do
+  action :modify
+  members ["#{node["elastic"]["user"]}"]
+  append true
+  not_if { node['install']['external_users'].casecmp("true") == 0 }
+end
+
 elasticsearch_user 'elasticsearch' do
   username node['elastic']['user']
   groupname node['elastic']['group']
@@ -74,24 +81,126 @@ include_recipe "ulimit2"
 node.override['elasticsearch']['url'] = node['elastic']['url']
 node.override['elasticsearch']['version'] = node['elastic']['version']
 
-my_ip = my_private_ip()
-mysql_ip = my_ip
-elastic_ip = private_recipe_ip("elastic","default")
-
+all_elastic_hosts = all_elastic_host_names()
+elastic_host = my_host()
 elasticsearch_configure 'elasticsearch' do
    path_home node['elastic']['home_dir']
-   path_conf "#{node['elastic']['home_dir']}/config"
-   path_data "#{node['elastic']['data_dir']}"
+   path_conf node['elastic']['config_dir']
+   path_data node['elastic']['data_dir']
+   path_logs node['elastic']['log_dir']
+   path_plugins node['elastic']['plugins_dir']
+   path_bin node['elastic']['bin_dir']
    logging({:"action" => 'INFO'})
    configuration ({
      'cluster.name' => node['elastic']['cluster_name'],
-     'node.name' => node['elastic']['node_name'],
-     'network.host' =>  my_ip,
+     'node.name' => elastic_host,
+     'node.master' => node['elastic']['master'].casecmp?("true") ,
+     'node.data' => node['elastic']['data'].casecmp?("true"),
+     'network.host' =>  elastic_host,
+     'transport.port' => node['elastic']['ntn_port'],
+     'http.port' => node['elastic']['port'],
      'http.cors.enabled' => true,
-     'http.cors.allow-origin' => "*"
+     'http.cors.allow-origin' => "*",
+     'discovery.seed_hosts' => all_elastic_hosts,
+     'cluster.initial_master_nodes' => all_elastic_hosts,
+     'cluster.max_shards_per_node' => node['elastic']['cluster']['max_shards_per_node'],
+     'opendistro_security.allow_unsafe_democertificates' => false,
+     'opendistro_security.disabled' => node['elastic']['opendistro_security']['enabled'].casecmp?("false"),
+     'opendistro_security.ssl.transport.enabled' => true,
+     'opendistro_security.ssl.transport.keystore_type' => node['elastic']['opendistro_security']['keystore']['type'],
+     'opendistro_security.ssl.transport.keystore_filepath' => node['elastic']['opendistro_security']['keystore']['file'],
+     'opendistro_security.ssl.transport.keystore_password' =>  node['elastic']['opendistro_security']['keystore']['password'],
+     'opendistro_security.ssl.transport.truststore_type' => node['elastic']['opendistro_security']['truststore']['type'],
+     'opendistro_security.ssl.transport.truststore_filepath' => node['elastic']['opendistro_security']['truststore']['file'],
+     'opendistro_security.ssl.transport.truststore_password' => node['elastic']['opendistro_security']['truststore']['password'],
+     'opendistro_security.ssl.http.enabled' => node['elastic']['opendistro_security']['https']['enabled'].casecmp?("true"),
+     'opendistro_security.ssl.http.keystore_type' => node['elastic']['opendistro_security']['keystore']['type'],
+     'opendistro_security.ssl.http.keystore_filepath' => node['elastic']['opendistro_security']['keystore']['file'],
+     'opendistro_security.ssl.http.keystore_password' => node['elastic']['opendistro_security']['keystore']['password'],
+     'opendistro_security.ssl.http.truststore_type' => node['elastic']['opendistro_security']['truststore']['type'],
+     'opendistro_security.ssl.http.truststore_filepath' => node['elastic']['opendistro_security']['truststore']['file'],
+     'opendistro_security.ssl.http.truststore_password' =>  node['elastic']['opendistro_security']['truststore']['password'],
+     'opendistro_security.allow_default_init_securityindex' => true,
+     'opendistro_security.restapi.roles_enabled' => ["all_access", "security_rest_api_access"],
+     'opendistro_security.roles_mapping_resolution' => 'BOTH',
+     'opendistro_security.nodes_dn' => all_elastic_nodes_dns(),
+     'opendistro_security.authcz.admin_dn' => get_elastic_admin_dn(),
+     'opendistro_security.audit.enable_rest' => node['elastic']['opendistro_security']['audit']['enable_rest'].casecmp?("true"),
+     'opendistro_security.audit.enable_transport' => node['elastic']['opendistro_security']['audit']['enable_transport'].casecmp?("true"),
+     'opendistro_security.audit.type' => node['elastic']['opendistro_security']['audit']['type'],
+     'opendistro_security.audit.threadpool.size' => node['elastic']['opendistro_security']['audit']['threadpool']['size'],
+     'opendistro_security.audit.threadpool.max_queue_len' => node['elastic']['opendistro_security']['audit']['threadpool']['max_queue_len']
    })
-   instance_name node['elastic']['node_name']
+   instance_name elastic_host
    action :manage
+end
+
+directory node['elastic']['data_dir'] do
+  owner node['elastic']['user']
+  group node['elastic']['group']
+  mode '0700'
+  recursive true
+end
+
+elastic_opendistro 'opendistro_security' do
+  action :install_security
+end
+
+template "#{node['elastic']['opendistro_security']['config_dir']}/action_groups.yml" do
+  source "action_groups.yml.erb"
+  user node['elastic']['user']
+  group node['elastic']['group']
+  mode "600"
+end
+
+template "#{node['elastic']['opendistro_security']['config_dir']}/internal_users.yml" do
+  source "internal_users.yml.erb"
+  user node['elastic']['user']
+  group node['elastic']['group']
+  mode "600"
+end
+
+template "#{node['elastic']['opendistro_security']['config_dir']}/roles.yml" do
+  source "roles.yml.erb"
+  user node['elastic']['user']
+  group node['elastic']['group']
+  mode "600"
+end
+
+template "#{node['elastic']['opendistro_security']['config_dir']}/roles_mapping.yml" do
+  source "roles_mapping.yml.erb"
+  user node['elastic']['user']
+  group node['elastic']['group']
+  mode "600"
+end
+
+template "#{node['elastic']['opendistro_security']['config_dir']}/tenants.yml" do
+  source "tenants.yml.erb"
+  user node['elastic']['user']
+  group node['elastic']['group']
+  mode "600"
+end
+
+template "#{node['elastic']['opendistro_security']['tools_dir']}/run_securityAdmin.sh" do
+  source "run_securityAdmin.sh.erb"
+  user node['elastic']['user']
+  group node['elastic']['group']
+  mode "700"
+end
+
+signing_key = ""
+if node['elastic']['opendistro_security']['jwt']['enabled'].casecmp?("true") 
+  signing_key = get_elk_signing_key()
+end 
+
+template "#{node['elastic']['opendistro_security']['config_dir']}/config.yml" do
+  source "config.yml.erb"
+  user node['elastic']['user']
+  group node['elastic']['group']
+  mode "600"
+  variables({
+    :signing_key => signing_key,
+  })
 end
 
 elasticsearch_service "#{service_name}" do
@@ -99,16 +208,6 @@ elasticsearch_service "#{service_name}" do
    init_source 'elasticsearch.erb'
    init_cookbook 'elastic'
    service_actions ['nothing']
-end
-
-template "#{node['elastic']['home_dir']}/config/elasticsearch.yml" do
-  source "elasticsearch.yml.erb"
-  user node['elastic']['user']
-  group node['elastic']['group']
-  mode "755"
-  variables({
-              :my_ip => my_ip
-            })
 end
 
 template "#{node['elastic']['home_dir']}/config/jvm.options" do
@@ -202,13 +301,17 @@ service "#{service_name}" do
   end
 end
 
+
 elastic_start "start_install_elastic" do
-  elastic_ip elastic_ip
-  systemd true
+  elastic_url my_elastic_url()
+  if opendistro_security?()
+    user node['elastic']['opendistro_security']['admin']['username']
+    password node['elastic']['opendistro_security']['admin']['password']
+  end
   action :run
 end
 
-# Download exporter 
+# Download exporter
 base_package_filename = File.basename(node['elastic']['exporter']['url'])
 cached_package_filename = "#{Chef::Config['file_cache_path']}/#{base_package_filename}"
 
@@ -254,17 +357,22 @@ service "elastic_exporter" do
   action :nothing
 end
 
+deps = "elasticsearch.service"
+
 template systemd_script do
   source "elastic_exporter.service.erb"
   owner "root"
   group "root"
   mode 0664
+  variables({
+              :deps => deps
+            })
   if node['services']['enabled'] == "true"
     notifies :enable, "service[elastic_exporter]", :immediately
   end
   notifies :restart, "service[elastic_exporter]", :immediately
   variables({
-    'es_master_uri' => "http://#{elastic_ip}:#{node['elastic']['port']}"
+    'es_master_uri' => get_my_es_master_uri()
   })
 end
 
@@ -272,7 +380,14 @@ kagent_config "elastic_exporter" do
   action :systemd_reload
 end
 
-if node['install']['upgrade'] == "true"
+if node['kagent']['enabled'] == "true"
+   kagent_config "elastic_exporter" do
+     service "Monitoring"
+     restart_agent false
+   end
+end
+
+if conda_helpers.is_upgrade
   kagent_config "#{service_name}" do
     action :systemd_reload
   end
