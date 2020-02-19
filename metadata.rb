@@ -19,6 +19,10 @@ depends "sysctl"
   supports os
 end
 
+attribute "elastic/clusternodes",
+          :description =>  "List of comma separated cluster node ip",
+          :type => 'string'
+
 attribute "elastic/port",
           :description =>  "Port for elasticsearch service (default: 9200)",
           :type => 'string'
