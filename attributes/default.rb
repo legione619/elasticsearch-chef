@@ -43,9 +43,10 @@ default['elastic']['kernel']['vm.max_map_count']      = "262144"
 
 
 # Index management
-# Whether to reindex the projects index. In case of changes in the index,
+# Whether to reindex the projects/featurestore index. In case of changes in the index,
 # set this attr to true. It will then be deleted and re-created so epipe can reindex it.
-default['elastic']['projects']['reindex']   = "false"
+default['elastic']['projects']['reindex']       = "false"
+default['elastic']['featurestore']['reindex']   = "false"
 
 # Metrics
 default['elastic']['exporter']['version']       = "1.1.0"
@@ -117,3 +118,4 @@ default['elastic']['opendistro_security']['audit']['threadpool']['max_queue_len'
 default['elastic']['epipe']['search_index']                                         = "projects"
 default['elastic']['epipe']['app_provenance_index']                                 = "app_prov"
 default['elastic']['epipe']['file_provenance_index_pattern']                        = "*__file_prov"
+default['elastic']['epipe']['featurestore_index']                                   = "featurestore"

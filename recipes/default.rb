@@ -124,7 +124,7 @@ elasticsearch_configure 'elasticsearch' do
      'opendistro_security.restapi.roles_enabled' => ["all_access", "security_rest_api_access"],
      'opendistro_security.roles_mapping_resolution' => 'BOTH',
      'opendistro_security.nodes_dn' => all_elastic_nodes_dns(),
-     'opendistro_security.authcz.admin_dn' => get_elastic_admin_dn(),
+     'opendistro_security.authcz.admin_dn' => get_all_elastic_admin_dns(),
      'opendistro_security.audit.enable_rest' => node['elastic']['opendistro_security']['audit']['enable_rest'].casecmp?("true"),
      'opendistro_security.audit.enable_transport' => node['elastic']['opendistro_security']['audit']['enable_transport'].casecmp?("true"),
      'opendistro_security.audit.type' => node['elastic']['opendistro_security']['audit']['type'],
@@ -142,7 +142,15 @@ directory node['elastic']['data_dir'] do
   recursive true
 end
 
+hopsworks_alt_url = "https://#{private_recipe_ip("hopsworks","default")}:8181"
+if node.attribute? "hopsworks"
+  if node["hopsworks"].attribute? "https" and node["hopsworks"]['https'].attribute? ('port')
+    hopsworks_alt_url = "https://#{private_recipe_ip("hopsworks","default")}:#{node['hopsworks']['https']['port']}"
+  end
+end
+
 elastic_opendistro 'opendistro_security' do
+  hopsworks_alt_url hopsworks_alt_url
   action :install_security
 end
 
