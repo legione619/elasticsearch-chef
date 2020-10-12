@@ -3,7 +3,7 @@ maintainer       "Jim Dowling"
 maintainer_email "jdowling@kth.se"
 license          "Apache v2.0"
 description      'Installs/Configures/Runs elasticsearch'
-version          "1.3.0"
+version          "1.4.0"
 
 recipe            "elastic::install", "Experiment setup for elasticsearch"
 recipe            "elastic::default",  "Configures and starts an elasticsearch server"
@@ -17,6 +17,7 @@ depends "elasticsearch", '~> 4.0.0'
 depends 'conda'
 depends 'kagent'
 depends 'ndb'
+depends 'hops'
 
 
 %w{ ubuntu debian rhel centos }.each do |os|
@@ -37,6 +38,14 @@ attribute "elastic/ulimit_memlock",
 
 attribute "elastic/user",
           :description =>  "User to install elastic as.",
+          :type => 'string'
+
+attribute "elastic/user-home",
+          :description =>  "Home directory of elastic user",
+          :type => 'string'
+
+attribute "elastic/elk-home",
+          :description =>  "Home directory of elastic admin user",
           :type => 'string'
 
 attribute "elastic/group",
