@@ -6,7 +6,11 @@ default['elastic']['install_type']          = "tarball"
 default['elastic']['checksum']              = "4c77cfce006de44f4657469523c6305e2ae06b60021cabb4398c2d0a48e8920a"
 default['elastic']['url']                   = node['download_url'] + "/elasticsearch-oss-#{node['elastic']['version']}-linux-x86_64.tar.gz"
 default['elastic']['user']                  = node['install']['user'].empty? ? "elastic" : node['install']['user']
+default['elastic']['elk-user']              = node['install']['user'].empty? ? "elkadmin" : node['install']['user']
 default['elastic']['group']                 = node['install']['user'].empty? ? "elastic" : node['install']['user']
+default['elastic']['elk-group']             = node['install']['user'].empty? ? "elkadmin" : node['install']['user']
+default['elastic']['user-home']             = "/home/#{node['elastic']['user']}"
+default['elastic']['elk-home']              = "/home/#{node['elastic']['elk-user']}"
 
 default['elastic']['port']                  = "9200"
 default['elastic']['ntn_port']              = "9300" #elastic node to node communication port
@@ -43,9 +47,10 @@ default['elastic']['kernel']['vm.max_map_count']      = "262144"
 
 
 # Index management
-# Whether to reindex the projects index. In case of changes in the index,
+# Whether to reindex the projects/featurestore index. In case of changes in the index,
 # set this attr to true. It will then be deleted and re-created so epipe can reindex it.
-default['elastic']['projects']['reindex']   = "false"
+default['elastic']['projects']['reindex']       = "false"
+default['elastic']['featurestore']['reindex']   = "false"
 
 # Metrics
 default['elastic']['exporter']['version']       = "1.1.0"
@@ -82,19 +87,16 @@ default['elastic']['opendistro_security']['epipe']['username']                  
 default['elastic']['opendistro_security']['epipe']['password']                      = "epipepassword"
 
 default['elastic']['opendistro_security']['keystore']['type']                       = "JKS"
-default['elastic']['kagent']['keystore']['location']                                = node['install']['localhost'].casecmp?("true") ? "#{node['kagent']['keystore_dir']}/localhost__kstore.jks" : "#{node['kagent']['keystore_dir']}/#{node['fqdn']}__kstore.jks"
 default['elastic']['opendistro_security']['keystore']['file']                       = "kstore.jks"
 default['elastic']['opendistro_security']['keystore']['location']                   = "#{node['elastic']['config_dir']}/#{node['elastic']['opendistro_security']['keystore']['file']}"
 default['elastic']['opendistro_security']['keystore']['password']                   = node['hopsworks']['master']['password']
 
 default['elastic']['opendistro_security']['truststore']['type']                     = "JKS"
-default['elastic']['kagent']['truststore']['location']                              = node['install']['localhost'].casecmp?("true") ?  "#{node['kagent']['keystore_dir']}/localhost__tstore.jks" : "#{node['kagent']['keystore_dir']}/#{node['fqdn']}__tstore.jks"
 default['elastic']['opendistro_security']['truststore']['file']                     = "tstore.jks"
 default['elastic']['opendistro_security']['truststore']['location']                 = "#{node['elastic']['config_dir']}/#{node['elastic']['opendistro_security']['truststore']['file']}"
 default['elastic']['opendistro_security']['truststore']['password']                 = node['hopsworks']['master']['password']
 
 default['elastic']['opendistro_security']['https']['enabled']                       = "true"
-default['elastic']['opendistro_security']['ca']                                     = node["kagent"]["certs"]["root_ca"]
 default['elastic']['opendistro_security']['kibana']['multitenancy']['enabled']      = "true"
 default['elastic']['opendistro_security']['kibana']['index']                        = ".kibana"
 
@@ -115,5 +117,6 @@ default['elastic']['opendistro_security']['audit']['threadpool']['max_queue_len'
 
 
 default['elastic']['epipe']['search_index']                                         = "projects"
-default['elastic']['epipe']['app_provenance_index']                                 = "app_prov"
+default['elastic']['epipe']['app_provenance_index']                                 = "app_provenance"
 default['elastic']['epipe']['file_provenance_index_pattern']                        = "*__file_prov"
+default['elastic']['epipe']['featurestore_index']                                   = "featurestore"

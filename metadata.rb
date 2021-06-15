@@ -3,21 +3,30 @@ maintainer       "Jim Dowling"
 maintainer_email "jdowling@kth.se"
 license          "Apache v2.0"
 description      'Installs/Configures/Runs elasticsearch'
-version          "1.2.0"
+version          "2.2.0"
 
 recipe            "elastic::install", "Experiment setup for elasticsearch"
 recipe            "elastic::default",  "Configures and starts an elasticsearch server"
 recipe            "elastic::purge",  "Deletes an elasticsearch server"
 
-depends "kagent"
-depends "java"
-depends "elasticsearch"
-depends "ulimit2"
-depends "sysctl"
+
+depends "java", '~> 7.0.0'
+depends "ulimit2", '~> 0.2.0'
+depends "sysctl", '~> 1.0.3'
+depends "elasticsearch", '~> 4.0.0'
+depends "ark", '= 5.1.1'
+depends 'conda'
+depends 'kagent'
+depends 'ndb'
+
 
 %w{ ubuntu debian rhel centos }.each do |os|
   supports os
 end
+
+attribute "elastic/clusternodes",
+          :description =>  "List of comma separated cluster node ip",
+          :type => 'string'
 
 attribute "elastic/port",
           :description =>  "Port for elasticsearch service (default: 9200)",
@@ -33,6 +42,14 @@ attribute "elastic/ulimit_memlock",
 
 attribute "elastic/user",
           :description =>  "User to install elastic as.",
+          :type => 'string'
+
+attribute "elastic/user-home",
+          :description =>  "Home directory of elastic user",
+          :type => 'string'
+
+attribute "elastic/elk-home",
+          :description =>  "Home directory of elastic admin user",
           :type => 'string'
 
 attribute "elastic/group",
@@ -89,6 +106,10 @@ attribute "install/user",
 
 attribute "elastic/projects/reindex",
           :description => "Delete and reindex the projects index",
+          :type => "string"
+
+attribute "elastic/featurestore/reindex",
+          :description => "Delete and reindex the featurestore index",
           :type => "string"
 
 attribute "elastic/master",

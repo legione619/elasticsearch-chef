@@ -45,7 +45,6 @@ logstash_hopsworks:
     - index_patterns:
       - "*_logs-*"
       - "*_serving-*"
-      - "*_kagent-*"
       - "*_beamjobserver-*"
       - "*_beamsdkworker-*"
       allowed_actions:
@@ -114,6 +113,7 @@ elastic_exporter_hopsworks:
       - ".kibana_*_${attr.jwt.pn}"
       allowed_actions:
         - read
+        - write
         - index
         - get
     - index_patterns:
@@ -144,6 +144,7 @@ epipe_hopsworks:
     - index_patterns:
       - "<%=node['elastic']['epipe']['search_index']%>"
       - "<%=node['elastic']['epipe']['app_provenance_index'] %>"
+      - "<%=node['elastic']['epipe']['featurestore_index'] %>"
       allowed_actions:
         - crud
     - index_patterns:

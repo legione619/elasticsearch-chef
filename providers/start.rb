@@ -129,10 +129,10 @@ action :run do
           }
        }
     }'
-  end 
+  end
 
   elastic_http 'elastic-create-experiments-template' do
-    action :put 
+    action :put
     url "#{new_resource.elastic_url}/_template/experiments"
     user new_resource.user
     password new_resource.password
@@ -220,41 +220,6 @@ action :run do
              }
           }
        }
-    }'
-  end
-
-  elastic_http 'elastic-create-kagent-template' do
-    action :put 
-    url "#{new_resource.elastic_url}/_template/kagent"
-    user new_resource.user
-    password new_resource.password
-    message '
-    {
-    "index_patterns":[
-       "*_kagent-*"
-    ],
-    "mappings":{
-       "properties":{
-          "project_name":{
-             "type":"keyword"
-          },
-          "operation":{
-             "type":"keyword"
-          },
-          "artifact":{
-             "type":"keyword"
-          },
-          "artifact_version":{
-             "type":"keyword"
-          },
-          "return_code":{
-             "type":"integer"
-          },
-          "return_message":{
-             "type":"text"
-          }
-       }
-     }
     }'
   end
 
@@ -432,7 +397,7 @@ action :run do
             "type":"keyword"
           },
           "timestamp":{
-            "type":"text"
+            "type":"long"
           },
           "app_name":{
             "type":"text"
@@ -440,9 +405,76 @@ action :run do
           "app_user":{
             "type":"text"
           }
-          }
+        }
       }
     }'
     only_if_exists false
+  end
+  
+  elastic_http 'delete featurestore index' do
+    action :delete 
+    url "#{new_resource.elastic_url}/#{node['elastic']['epipe']['featurestore_index']}"
+    user new_resource.user
+    password new_resource.password
+    only_if_cond node['elastic']['featurestore']['reindex'] == "true"
+    only_if_exists true
+  end
+
+  elastic_http 'elastic-install-featurestore-index' do
+    action :put
+    url "#{new_resource.elastic_url}/#{node['elastic']['epipe']['featurestore_index']}"
+    user new_resource.user
+    password new_resource.password
+    only_if_exists false
+    message '
+    {
+      "mappings":{
+        "dynamic":"strict",
+        "properties":{
+          "doc_type":{
+            "type":"keyword"
+          },
+          "name":{
+            "type":"text"
+          },
+          "version":{
+            "type":"integer"
+          },
+          "project_id":{
+            "type":"integer"
+          },
+          "project_name":{
+            "type":"text"
+          },
+          "dataset_iid":{
+            "type":"long"
+          },
+          "xattr":{
+            "type":"nested",
+            "dynamic":true
+          }
+        }
+      }
+    }'
+  end
+
+  elastic_http 'elastic-create-pypi-template' do
+    action :put
+    url "#{new_resource.elastic_url}/_template/pypi_libraries"
+    user new_resource.user
+    password new_resource.password
+    message '
+    {
+       "index_patterns":[
+          "pypi_libraries_*"
+       ],
+      "mappings":{
+        "properties":{
+          "library":{
+            "type":"text"
+          }
+        }
+      }
+    }'
   end
 end

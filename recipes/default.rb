@@ -14,36 +14,41 @@ when 'rhel'
   package 'unzip'
 end
 
+# User certs must belong to elastic group to be able to rotate x509 material
 group node['elastic']['group'] do
-  action :create
-  not_if "getent group #{node['elastic']['group']}"
-  not_if { node['install']['external_users'].casecmp("true") == 0 }
-end
-
-user node['elastic']['user'] do
-  gid node['elastic']['group']
-  shell "/bin/bash"
-  manage_home false
-  system true
-  action :create
-  not_if "getent passwd #{node['elastic']['user']}"
-  not_if { node['install']['external_users'].casecmp("true") == 0 }
-end
-
-group node['kagent']['certs_group'] do
   action :modify
-  members ["#{node["elastic"]["user"]}"]
+  members node['kagent']['certs_user']
   append true
   not_if { node['install']['external_users'].casecmp("true") == 0 }
 end
 
+# User certs must belong to elk-group group to be able to rotate x509 material
+group node['elastic']['elk-group'] do
+  action :modify
+  members node['kagent']['certs_user']
+  append true
+  not_if { node['install']['external_users'].casecmp("true") == 0 }
+end
+
+# This block is needed. Do not try adding action :nothing it won't work
+# As of v 4.0.0 they don't implement this action so it fallbacks
+# to the default action which is create
 elasticsearch_user 'elasticsearch' do
   username node['elastic']['user']
   groupname node['elastic']['group']
   shell '/bin/bash'
   comment 'Elasticsearch User'
   instance_name node['elastic']['node_name']
-  action :nothing
+  not_if "getent passwd #{node['elastic']['user']}"
+  not_if { node['install']['external_users'].casecmp("true") == 0 }
+end
+
+# Manually create home directory for elastic user
+directory node['elastic']['user-home'] do
+  owner node['elastic']['user']
+  group node['elastic']['group']
+  mode "0700"
+  action :create
 end
 
 install_dir = Hash.new
@@ -124,7 +129,7 @@ elasticsearch_configure 'elasticsearch' do
      'opendistro_security.restapi.roles_enabled' => ["all_access", "security_rest_api_access"],
      'opendistro_security.roles_mapping_resolution' => 'BOTH',
      'opendistro_security.nodes_dn' => all_elastic_nodes_dns(),
-     'opendistro_security.authcz.admin_dn' => get_elastic_admin_dn(),
+     'opendistro_security.authcz.admin_dn' => get_all_elastic_admin_dns(),
      'opendistro_security.audit.enable_rest' => node['elastic']['opendistro_security']['audit']['enable_rest'].casecmp?("true"),
      'opendistro_security.audit.enable_transport' => node['elastic']['opendistro_security']['audit']['enable_transport'].casecmp?("true"),
      'opendistro_security.audit.type' => node['elastic']['opendistro_security']['audit']['type'],
@@ -142,7 +147,15 @@ directory node['elastic']['data_dir'] do
   recursive true
 end
 
+hopsworks_alt_url = "https://#{private_recipe_ip("hopsworks","default")}:8181"
+if node.attribute? "hopsworks"
+  if node["hopsworks"].attribute? "https" and node["hopsworks"]['https'].attribute? ('port')
+    hopsworks_alt_url = "https://#{private_recipe_ip("hopsworks","default")}:#{node['hopsworks']['https']['port']}"
+  end
+end
+
 elastic_opendistro 'opendistro_security' do
+  hopsworks_alt_url hopsworks_alt_url
   action :install_security
 end
 
@@ -150,54 +163,60 @@ template "#{node['elastic']['opendistro_security']['config_dir']}/action_groups.
   source "action_groups.yml.erb"
   user node['elastic']['user']
   group node['elastic']['group']
-  mode "600"
+  mode "650"
 end
 
 template "#{node['elastic']['opendistro_security']['config_dir']}/internal_users.yml" do
   source "internal_users.yml.erb"
   user node['elastic']['user']
   group node['elastic']['group']
-  mode "600"
+  mode "650"
 end
 
 template "#{node['elastic']['opendistro_security']['config_dir']}/roles.yml" do
   source "roles.yml.erb"
   user node['elastic']['user']
   group node['elastic']['group']
-  mode "600"
+  mode "650"
 end
 
 template "#{node['elastic']['opendistro_security']['config_dir']}/roles_mapping.yml" do
   source "roles_mapping.yml.erb"
   user node['elastic']['user']
   group node['elastic']['group']
-  mode "600"
+  mode "650"
 end
 
 template "#{node['elastic']['opendistro_security']['config_dir']}/tenants.yml" do
   source "tenants.yml.erb"
   user node['elastic']['user']
   group node['elastic']['group']
-  mode "600"
+  mode "650"
 end
 
+elk_crypto_dir = x509_helper.get_crypto_dir(node['elastic']['elk-user'])
 template "#{node['elastic']['opendistro_security']['tools_dir']}/run_securityAdmin.sh" do
   source "run_securityAdmin.sh.erb"
-  user node['elastic']['user']
+  user node['elastic']['elk-user']
   group node['elastic']['group']
   mode "700"
+  variables({
+     :hopsCAFile => "#{elk_crypto_dir}/#{x509_helper.get_hops_ca_bundle_name()}",
+     :elkUserCert => "#{elk_crypto_dir}/#{x509_helper.get_certificate_bundle_name(node['elastic']['elk-user'])}",
+     :elkUserKey => "#{elk_crypto_dir}/#{x509_helper.get_private_key_pkcs8_name(node['elastic']['elk-user'])}"
+  })
 end
 
 signing_key = ""
-if node['elastic']['opendistro_security']['jwt']['enabled'].casecmp?("true") 
+if node['elastic']['opendistro_security']['jwt']['enabled'].casecmp?("true")
   signing_key = get_elk_signing_key()
-end 
+end
 
 template "#{node['elastic']['opendistro_security']['config_dir']}/config.yml" do
   source "config.yml.erb"
   user node['elastic']['user']
   group node['elastic']['group']
-  mode "600"
+  mode "650"
   variables({
     :signing_key => signing_key,
   })
@@ -323,7 +342,7 @@ remote_file cached_package_filename do
 end
 
 elastic_exporter_downloaded= "#{node['elastic']['exporter']['home']}/.elastic_exporter.extracted_#{node['elastic']['exporter']['version']}"
-# Extract elastic_exporter 
+# Extract elastic_exporter
 bash 'extract_elastic_exporter' do
   user "root"
   code <<-EOH
@@ -343,10 +362,10 @@ link node['elastic']['exporter']['base_dir'] do
   to node['elastic']['exporter']['home']
 end
 
-# Template and configure elasticsearch exporter 
+# Template and configure elasticsearch exporter
 case node['platform_family']
 when "rhel"
-  systemd_script = "/usr/lib/systemd/system/elastic_exporter.service" 
+  systemd_script = "/usr/lib/systemd/system/elastic_exporter.service"
 else
   systemd_script = "/lib/systemd/system/elastic_exporter.service"
 end
@@ -359,6 +378,7 @@ end
 
 deps = "elasticsearch.service"
 
+elastic_crypto_dir = x509_helper.get_crypto_dir(node['elastic']['user'])
 template systemd_script do
   source "elastic_exporter.service.erb"
   owner "root"
@@ -372,7 +392,8 @@ template systemd_script do
   end
   notifies :restart, "service[elastic_exporter]", :immediately
   variables({
-    'es_master_uri' => get_my_es_master_uri()
+     :es_master_uri => get_my_es_master_uri(),
+     :hopsCAFile => "#{elastic_crypto_dir}/#{x509_helper.get_hops_ca_bundle_name()}",
   })
 end
 
@@ -385,6 +406,14 @@ if node['kagent']['enabled'] == "true"
      service "Monitoring"
      restart_agent false
    end
+end
+
+if service_discovery_enabled()
+  # Register elastic with Consul
+  consul_service "Registering Elastic with Consul" do
+    service_definition "elastic-consul.hcl.erb"
+    action :register
+  end
 end
 
 if conda_helpers.is_upgrade
