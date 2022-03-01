@@ -3,7 +3,7 @@ maintainer       "Jim Dowling"
 maintainer_email "jdowling@kth.se"
 license          "Apache v2.0"
 description      'Installs/Configures/Runs elasticsearch'
-version          "2.3.0"
+version          "2.5.0"
 
 recipe            "elastic::install", "Experiment setup for elasticsearch"
 recipe            "elastic::default",  "Configures and starts an elasticsearch server"
@@ -25,10 +25,6 @@ depends 'ndb'
   supports os
 end
 
-attribute "elastic/clusternodes",
-          :description =>  "List of comma separated cluster node ip",
-          :type => 'string'
-
 attribute "elastic/port",
           :description =>  "Port for elasticsearch service (default: 9200)",
           :type => 'string'
@@ -45,8 +41,20 @@ attribute "elastic/user",
           :description =>  "User to install elastic as.",
           :type => 'string'
 
+attribute "elastic/user_id",
+          :description =>  "Elastic user ID. Default: 1501",
+          :type => 'string'
+
 attribute "elastic/user-home",
           :description =>  "Home directory of elastic user",
+          :type => 'string'
+
+attribute "elastic/elk-user",
+          :description =>  "Administrator user for ELK stack.",
+          :type => 'string'
+
+attribute "elastic/elk-user_id",
+          :description =>  "ELK stack admin user ID. Default: 1502",
           :type => 'string'
 
 attribute "elastic/elk-home",
@@ -57,12 +65,28 @@ attribute "elastic/group",
           :description =>  "Group to install elastic as.",
           :type => 'string'
 
+attribute "elastic/group_id",
+          :description =>  "Elastic group ID. Default: 1501",
+          :type => 'string'
+
+attribute "elastic/elk-group",
+          :description =>  "Group for ELK admin user.",
+          :type => 'string'
+
+attribute "elastic/elk-group_id",
+          :description =>  "ELK admin group ID. Default: 1502",
+          :type => 'string'
+
 attribute "elastic/dir",
           :description =>  "Base directory to install elastic search into.",
           :type => 'string'
 
 attribute "elastic/data_dir",
           :description =>  "Directory to store elastic data.",
+          :type => 'string'
+
+attribute "elastic/backup_dir",
+          :description =>  "Directory to store elastic backup snapshots.",
           :type => 'string'
 
 attribute "elastic/memory",

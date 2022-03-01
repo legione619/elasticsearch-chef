@@ -6,9 +6,13 @@ default['elastic']['install_type']          = "tarball"
 default['elastic']['checksum']              = "4c77cfce006de44f4657469523c6305e2ae06b60021cabb4398c2d0a48e8920a"
 default['elastic']['url']                   = node['download_url'] + "/elasticsearch-oss-#{node['elastic']['version']}-linux-x86_64.tar.gz"
 default['elastic']['user']                  = node['install']['user'].empty? ? "elastic" : node['install']['user']
+default['elastic']['user_id']               = '1501'
 default['elastic']['elk-user']              = node['install']['user'].empty? ? "elkadmin" : node['install']['user']
+default['elastic']['elk-user_id']           = '1502'
 default['elastic']['group']                 = node['install']['user'].empty? ? "elastic" : node['install']['user']
+default['elastic']['group_id']              = '1501'
 default['elastic']['elk-group']             = node['install']['user'].empty? ? "elkadmin" : node['install']['user']
+default['elastic']['elk-group_id']          = '1502'
 default['elastic']['user-home']             = "/home/#{node['elastic']['user']}"
 default['elastic']['elk-home']              = "/home/#{node['elastic']['elk-user']}"
 
@@ -19,10 +23,17 @@ default['elastic']['cluster_name']          = "hops"
 default['elastic']['master']                = "true"
 default['elastic']['data']                  = "true"
 
+# Data volume directories
+default['elastic']['data_volume']['root_dir'] = "#{node['data']['dir']}/elasticsearch"
+default['elastic']['data_volume']['data_dir'] = "#{node['elastic']['data_volume']['root_dir']}/elasticsearch-data"
+default['elastic']['data_volume']['backup_dir'] = "#{node['elastic']['data_volume']['root_dir']}/elasticsearch-backup"
+default['elastic']['data_volume']['log_dir']  = "#{node['elastic']['data_volume']['root_dir']}/logs"
+
 default['elastic']['dir']                   = node['install']['dir'].empty? ? "/usr/local" : node['install']['dir']
 default['elastic']['version_dir']           = "#{node['elastic']['dir']}/elasticsearch-#{node['elastic']['version']}"
 default['elastic']['home_dir']              = "#{node['elastic']['dir']}/elasticsearch"
 default['elastic']['data_dir']              = "#{node['elastic']['dir']}/elasticsearch-data"
+default['elastic']['backup_dir']            = "#{node['elastic']['dir']}/elasticsearch-backup"
 default['elastic']['config_dir']            = "#{node['elastic']['home_dir']}/config"
 default['elastic']['log_dir']               = "#{node['elastic']['home_dir']}/logs"
 default['elastic']['bin_dir']               = "#{node['elastic']['home_dir']}/bin"
@@ -85,6 +96,8 @@ default['elastic']['opendistro_security']['elastic_exporter']['username']       
 default['elastic']['opendistro_security']['elastic_exporter']['password']           = "elastic_exporter"
 default['elastic']['opendistro_security']['epipe']['username']                      = "epipeuser"
 default['elastic']['opendistro_security']['epipe']['password']                      = "epipepassword"
+default['elastic']['opendistro_security']['service_log_viewer']['username']         = "service_log_viewer"
+default['elastic']['opendistro_security']['service_log_viewer']['password']         = "service_log_viewer"
 
 default['elastic']['opendistro_security']['keystore']['type']                       = "JKS"
 default['elastic']['opendistro_security']['keystore']['file']                       = "kstore.jks"

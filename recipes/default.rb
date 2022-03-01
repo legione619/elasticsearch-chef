@@ -35,6 +35,7 @@ end
 # to the default action which is create
 elasticsearch_user 'elasticsearch' do
   username node['elastic']['user']
+  uid node['elastic']['user_id'].to_i
   groupname node['elastic']['group']
   shell '/bin/bash'
   comment 'Elasticsearch User'
@@ -49,6 +50,58 @@ directory node['elastic']['user-home'] do
   group node['elastic']['group']
   mode "0700"
   action :create
+end
+
+directory node['data']['dir'] do
+  owner 'root'
+  group 'root'
+  mode '0775'
+  action :create
+  not_if { ::File.directory?(node['data']['dir']) }
+end
+
+directory node['elastic']['data_volume']['root_dir'] do
+  owner node['elastic']['user']
+  group node['elastic']['group']
+  mode '0700'
+end
+
+directory node['elastic']['data_volume']['data_dir'] do
+  owner node['elastic']['user']
+  group node['elastic']['group']
+  mode '0700'
+end
+
+directory node['elastic']['data_volume']['backup_dir'] do
+  owner node['elastic']['user']
+  group node['elastic']['group']
+  mode '0700'
+end
+
+bash 'Move elasticsearch data to data volume' do
+  user 'root'
+  code <<-EOH
+    set -e
+    mv -f #{node['elastic']['data_dir']}/* #{node['elastic']['data_volume']['data_dir']}
+    mv -f #{node['elastic']['data_dir']} #{node['elastic']['data_dir']}_deprecated
+  EOH
+  only_if { conda_helpers.is_upgrade }
+  only_if { File.directory?(node['elastic']['data_dir'])}
+  not_if { File.symlink?(node['elastic']['data_dir'])}
+end
+
+link node['elastic']['data_dir'] do
+  owner node['elastic']['user']
+  group node['elastic']['group']
+  mode '0700'
+  to node['elastic']['data_volume']['data_dir']
+end
+
+link node['elastic']['backup_dir'] do
+  owner node['elastic']['user']
+  group node['elastic']['group']
+  mode '0700'
+  to node['elastic']['data_volume']['backup_dir']
 end
 
 install_dir = Hash.new
@@ -67,6 +120,39 @@ elasticsearch_install 'elasticsearch' do
   download_checksum node['elastic']['checksum']
   dir node['elastic']['dir']
   action :install
+end
+
+directory node['elastic']['data_volume']['log_dir'] do
+  owner node['elastic']['user']
+  group node['elastic']['group']
+  mode '0750'
+end
+
+bash 'Move elasticsearch logs to data volume' do
+  user 'root'
+  code <<-EOH
+    set -e
+    mv -f #{node['elastic']['log_dir']}/* #{node['elastic']['data_volume']['log_dir']}
+    mv -f #{node['elastic']['log_dir']} #{node['elastic']['log_dir']}_deprecated
+  EOH
+  only_if { conda_helpers.is_upgrade }
+  only_if { File.directory?(node['elastic']['log_dir'])}
+  not_if { File.symlink?(node['elastic']['log_dir'])}
+end
+
+# Logs directory is created by elasticsearch provider
+# Small hack to create the symlink below
+directory node['elastic']['log_dir'] do
+  recursive true
+  action :delete
+  not_if { conda_helpers.is_upgrade }
+end
+
+link node['elastic']['log_dir'] do
+  owner node['elastic']['user']
+  group node['elastic']['group']
+  mode '0750'
+  to node['elastic']['data_volume']['log_dir']
 end
 
 node.override['ulimit']['conf_dir'] = "/etc/security"
@@ -134,17 +220,30 @@ elasticsearch_configure 'elasticsearch' do
      'opendistro_security.audit.enable_transport' => node['elastic']['opendistro_security']['audit']['enable_transport'].casecmp?("true"),
      'opendistro_security.audit.type' => node['elastic']['opendistro_security']['audit']['type'],
      'opendistro_security.audit.threadpool.size' => node['elastic']['opendistro_security']['audit']['threadpool']['size'],
-     'opendistro_security.audit.threadpool.max_queue_len' => node['elastic']['opendistro_security']['audit']['threadpool']['max_queue_len']
+     'opendistro_security.audit.threadpool.max_queue_len' => node['elastic']['opendistro_security']['audit']['threadpool']['max_queue_len'],
+     'path.repo' => node['elastic']['backup_dir']
    })
    instance_name elastic_host
    action :manage
 end
 
-directory node['elastic']['data_dir'] do
+# We must change directory permissions again after elasticsearch_configure
+directory node['elastic']['data_volume']['data_dir'] do
   owner node['elastic']['user']
   group node['elastic']['group']
   mode '0700'
-  recursive true
+end
+
+directory node['elastic']['data_volume']['backup_dir'] do
+  owner node['elastic']['user']
+  group node['elastic']['group']
+  mode '0700'
+end
+
+directory node['elastic']['data_volume']['log_dir'] do
+  owner node['elastic']['user']
+  group node['elastic']['group']
+  mode '0700'
 end
 
 hopsworks_alt_url = "https://#{private_recipe_ip("hopsworks","default")}:8181"

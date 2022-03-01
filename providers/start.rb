@@ -21,64 +21,41 @@ action :run do
     only_if_cond node['elastic']['projects']['reindex'] == "true"
     only_if_exists true
   end
-  
-  elastic_http 'elastic-install-projects-index' do
+  elastic_http 'elastic-create-projects-template' do
+    action :put
+    url "#{new_resource.elastic_url}/_template/#{node['elastic']['epipe']['search_index']}"
+    user new_resource.user
+    password new_resource.password
+    message "{
+      \"index_patterns\":[ \"#{node['elastic']['epipe']['search_index']}\" ],
+      \"mappings\":{
+        \"dynamic\":\"strict\",
+        \"properties\":{
+           \"doc_type\"     :{\"type\":\"keyword\"},
+           \"project_id\"   :{\"type\":\"integer\"},
+           \"dataset_id\"   :{\"type\":\"long\"},
+           \"public_ds\"    :{\"type\":\"boolean\"},
+           \"description\"  :{\"type\":\"text\"},
+           \"name\"         :{\"type\":\"text\"},
+           \"parent_id\"     :{\"type\":\"long\"},
+           \"partition_id\" :{\"type\":\"long\"},
+           \"user\"         :{\"type\":\"keyword\"},
+           \"group\"        :{\"type\":\"keyword\"},
+           \"operation\"    :{\"type\":\"short\"},
+           \"size\"         :{\"type\":\"long\"},
+           \"timestamp\"    :{\"type\":\"long\"},
+           \"xattr\"        :{\"type\":\"nested\",\"dynamic\":true}
+        }
+      }
+    }"
+  end
+  elastic_http 'elastic-create-projects-index' do
     action :put
     url "#{new_resource.elastic_url}/#{node['elastic']['epipe']['search_index']}"
     user new_resource.user
     password new_resource.password
     only_if_exists false
-    message '
-    {
-       "mappings":{
-          "dynamic":"strict",
-          "properties":{
-             "doc_type":{
-                "type":"keyword"
-             },
-             "project_id":{
-                "type":"integer"
-             },
-             "dataset_id":{
-                "type":"long"
-             },
-             "public_ds":{
-                "type":"boolean"
-             },
-             "description":{
-                "type":"text"
-             },
-             "name":{
-                "type":"text"
-             },
-             "parent_id":{
-                "type":"long"
-             },
-             "partition_id":{
-                "type":"long"
-             },
-             "user":{
-                "type":"keyword"
-             },
-             "group":{
-                "type":"keyword"
-             },
-             "operation":{
-                "type":"short"
-             },
-             "size":{
-                "type":"long"
-             },
-             "timestamp":{
-                "type":"long"
-             },
-             "xattr":{
-                "type":"nested",
-                "dynamic":true
-             }
-          }
-       }
-    }'
+    message ''
   end
 
   elastic_http 'elastic-create-logs-template' do
@@ -223,80 +200,35 @@ action :run do
     }'
   end
 
-  #Beam job server and sdkworker templates
-  elastic_http 'elastic-create-beamjobserver-template' do
+  elastic_http 'elastic-create-services-template' do
     action :put 
-    url "#{new_resource.elastic_url}/_template/beamjobserver"
+    url "#{new_resource.elastic_url}/_template/services"
     user new_resource.user
     password new_resource.password
     message '
     {
        "index_patterns":[
-          "*_beamjobserver-*"
+          ".services-*"
        ],
        "mappings":{
           "properties":{
+             "service":{
+                "type":"keyword"
+             },
              "host":{
                 "type":"keyword"
              },
-             "jobname":{
-                "type":"keyword"
-             },
-             "thread":{
-                "type":"keyword"
-             },
-             "file":{
+             "priority":{
                 "type":"keyword"
              },
              "logger_name":{
-                "type":"keyword"
-             },
-             "project":{
-                "type":"keyword"
+                "type":"text"
              },
              "log_message":{
                 "type":"text"
              },
-             "priority":{
-                "type":"text"
-             },
-             "jobport":{
-                "type":"text"
-             }
-          }
-       }
-    }'
-  end
-
-  elastic_http 'elastic-create-beamsdkworker-template' do
-    action :put 
-    url "#{new_resource.elastic_url}/_template/beamsdkworker"
-    user new_resource.user
-    password new_resource.password
-    message '
-    {
-       "index_patterns":[
-          "*_beamsdkworker-*"
-       ],
-       "mappings":{
-          "properties":{
-             "host":{
-                "type":"keyword"
-             },
-             "file":{
-                "type":"keyword"
-             },
-             "project":{
-                "type":"keyword"
-             },
-             "timestamp":{
+             "logdate":{
                 "type":"date"
-             },
-             "appid":{
-                "type":"keyword"
-             },
-             "log_message":{
-                "type":"text"
              }
           }
        }
@@ -381,34 +313,31 @@ action :run do
     }'
   end
 
-  elastic_http 'elastic-install-app-provenance-index' do
+  elastic_http 'elastic-create-app-provenance-template' do
+    action :put
+    url "#{new_resource.elastic_url}/_template/#{node['elastic']['epipe']['app_provenance_index']}"
+    user new_resource.user
+    password new_resource.password
+    message "{
+      \"index_patterns\":[ \"#{node['elastic']['epipe']['app_provenance_index']}\" ],
+      \"mappings\":{
+        \"properties\":{
+          \"app_id\"    :{\"type\":\"keyword\"},
+          \"app_state\" :{\"type\":\"keyword\"},
+          \"timestamp\" :{\"type\":\"long\"},
+          \"app_name\"  :{\"type\":\"text\"},
+          \"app_user\"  :{\"type\":\"text\"}
+        }
+      }
+    }"
+  end
+  elastic_http 'elastic-create-app-provenance-index' do
     action :put
     url "#{new_resource.elastic_url}/#{node['elastic']['epipe']['app_provenance_index']}"
     user new_resource.user
     password new_resource.password
-    message '
-    {
-      "mappings":{
-        "properties":{
-          "app_id":{
-            "type":"keyword"
-          },
-          "app_state":{
-            "type":"keyword"
-          },
-          "timestamp":{
-            "type":"long"
-          },
-          "app_name":{
-            "type":"text"
-          },
-          "app_user":{
-            "type":"text"
-          }
-        }
-      }
-    }'
     only_if_exists false
+    message ''
   end
   
   elastic_http 'delete featurestore index' do
@@ -420,42 +349,34 @@ action :run do
     only_if_exists true
   end
 
-  elastic_http 'elastic-install-featurestore-index' do
+  elastic_http 'elastic-create-featurestore-template' do
+    action :put
+    url "#{new_resource.elastic_url}/_template/#{node['elastic']['epipe']['featurestore_index']}"
+    user new_resource.user
+    password new_resource.password
+    message "{
+      \"index_patterns\":[ \"#{node['elastic']['epipe']['featurestore_index']}\" ],
+      \"mappings\":{
+        \"dynamic\":\"strict\",
+        \"properties\":{
+          \"doc_type\"    :{\"type\":\"keyword\"},
+          \"name\"        :{\"type\":\"text\"},
+          \"version\"     :{\"type\":\"integer\"},
+          \"project_id\"  :{\"type\":\"integer\"},
+          \"project_name\":{\"type\":\"text\"},
+          \"dataset_iid\" :{\"type\":\"long\"},
+          \"xattr\"       :{\"type\":\"nested\",\"dynamic\":true}
+        }
+      }
+    }"
+  end
+  elastic_http 'elastic-create-featurestore-index' do
     action :put
     url "#{new_resource.elastic_url}/#{node['elastic']['epipe']['featurestore_index']}"
     user new_resource.user
     password new_resource.password
     only_if_exists false
-    message '
-    {
-      "mappings":{
-        "dynamic":"strict",
-        "properties":{
-          "doc_type":{
-            "type":"keyword"
-          },
-          "name":{
-            "type":"text"
-          },
-          "version":{
-            "type":"integer"
-          },
-          "project_id":{
-            "type":"integer"
-          },
-          "project_name":{
-            "type":"text"
-          },
-          "dataset_iid":{
-            "type":"long"
-          },
-          "xattr":{
-            "type":"nested",
-            "dynamic":true
-          }
-        }
-      }
-    }'
+    message ''
   end
 
   elastic_http 'elastic-create-pypi-template' do
